@@ -1,6 +1,10 @@
 const { Categoria, Producto } = require("../models");
 const AppError = require("../utils/AppError");
 
+const {
+  obtenerIdValido,
+} = require("../utils/validaciones");
+
 
 // ========================================
 // OBTENER TODAS LAS CATEGORÍAS
@@ -29,7 +33,10 @@ async function obtenerCategorias(req, res, next) {
 
 async function obtenerCategoriaPorId(req, res, next) {
   try {
-    const { id } = req.params;
+    const id =
+  obtenerIdValido(
+    req.params.id
+  );
 
     const categoria = await Categoria.findByPk(id);
 
@@ -107,7 +114,10 @@ async function crearCategoria(req, res, next) {
 
 async function actualizarCategoria(req, res, next) {
   try {
-    const { id } = req.params;
+    const id =
+  obtenerIdValido(
+    req.params.id
+  );
     const { nombre } = req.body;
 
     // Validar nombre
@@ -172,7 +182,10 @@ async function actualizarCategoria(req, res, next) {
 
 async function eliminarCategoria(req, res, next) {
   try {
-    const { id } = req.params;
+    const id =
+  obtenerIdValido(
+    req.params.id
+  );
 
     // Buscar categoría
     const categoria =

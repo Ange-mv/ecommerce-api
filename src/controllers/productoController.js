@@ -5,6 +5,10 @@ const path = require("path");
 
 const AppError = require("../utils/AppError");
 
+const {
+  obtenerIdValido,
+} = require("../utils/validaciones");
+
 
 // ========================================
 // OBTENER TODOS LOS PRODUCTOS
@@ -281,13 +285,14 @@ async function obtenerProductos(req, res, next) {
 // ========================================
 
 async function obtenerProductoPorId(req, res, next) {
-  try {
-    const { id } = req.params;
+try {
+  const id =
+    obtenerIdValido(
+      req.params.id
+    );
 
-    const producto =
-      await Producto.findByPk(
-        id,
-        {
+  const producto =
+    await Producto.findByPk(id, {
           include: [
             {
               model: Categoria,
@@ -426,7 +431,10 @@ async function crearProducto(req, res, next) {
 
 async function actualizarProducto(req, res, next) {
   try {
-    const { id } = req.params;
+    const id =
+  obtenerIdValido(
+    req.params.id
+  );
 
     const {
       nombre,
@@ -534,8 +542,10 @@ async function actualizarProducto(req, res, next) {
 
 async function eliminarProducto(req, res, next) {
   try {
-    const { id } = req.params;
-
+    const id =
+  obtenerIdValido(
+    req.params.id
+  );
 
     const producto =
       await Producto.findByPk(id);
@@ -594,7 +604,10 @@ async function eliminarProducto(req, res, next) {
 
 async function subirImagen(req, res, next) {
   try {
-    const { id } = req.params;
+    const id =
+  obtenerIdValido(
+    req.params.id
+  );
 
 
     // Buscar producto
