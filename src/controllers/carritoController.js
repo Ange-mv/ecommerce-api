@@ -6,6 +6,11 @@ const {
 
 const AppError = require("../utils/AppError");
 
+const {
+  obtenerIdValido,
+  obtenerEnteroPositivo,
+} = require("../utils/validaciones");
+
 
 // ========================================
 // OBTENER CARRITO DEL USUARIO
@@ -20,13 +25,14 @@ async function obtenerCarrito(req, res, next) {
       where: {
         usuario_id: usuarioId,
       },
+
       defaults: {
         usuario_id: usuarioId,
       },
     });
 
 
-    // Obtener carrito con sus productos
+    // Buscar carrito completo con sus productos
     const carritoCompleto = await Carrito.findByPk(
       carrito.id,
       {
@@ -60,16 +66,14 @@ async function obtenerCarrito(req, res, next) {
     );
 
 
-    // Preparar items y subtotales
+    // Preparar productos con subtotal
     const items = carritoCompleto.items.map(
       (item) => {
-
         const precio =
           Number(item.producto.precio);
 
         return {
-          id:
-            item.id,
+          id: item.id,
 
           cantidad:
             item.cantidad,
@@ -98,7 +102,7 @@ async function obtenerCarrito(req, res, next) {
     );
 
 
-    // Calcular total
+    // Calcular total del carrito
     const total = items.reduce(
       (acumulador, item) =>
         acumulador + item.subtotal,
@@ -138,7 +142,8 @@ async function agregarProductoAlCarrito(
   next
 ) {
   try {
-    const usuarioId = req.user.id;
+    const usuarioId =
+      req.user.id;
 
     const {
       producto_id,
@@ -147,7 +152,7 @@ async function agregarProductoAlCarrito(
 
 
     // ========================================
-    // VALIDAR CAMPOS
+    // VALIDAR CAMPOS OBLIGATORIOS
     // ========================================
 
     if (
@@ -161,19 +166,26 @@ async function agregarProductoAlCarrito(
     }
 
 
-    const cantidadNumerica =
-      Number(cantidad);
+    // ========================================
+    // VALIDAR ID DEL PRODUCTO
+    // ========================================
 
-
-    if (
-      !Number.isInteger(cantidadNumerica) ||
-      cantidadNumerica <= 0
-    ) {
-      throw new AppError(
-        "La cantidad debe ser un número entero mayor a 0",
-        400
+    const productoId =
+      obtenerIdValido(
+        producto_id,
+        "producto_id"
       );
-    }
+
+
+    // ========================================
+    // VALIDAR CANTIDAD
+    // ========================================
+
+    const cantidadNumerica =
+      obtenerEnteroPositivo(
+        cantidad,
+        "cantidad"
+      );
 
 
     // ========================================
@@ -182,7 +194,7 @@ async function agregarProductoAlCarrito(
 
     const producto =
       await Producto.findByPk(
-        producto_id
+        productoId
       );
 
 
@@ -228,7 +240,8 @@ async function agregarProductoAlCarrito(
 
 
     // ========================================
-    // BUSCAR ITEM EXISTENTE
+    // BUSCAR SI EL PRODUCTO YA ESTÁ
+    // EN EL CARRITO
     // ========================================
 
     const itemExistente =
@@ -237,7 +250,8 @@ async function agregarProductoAlCarrito(
           carrito_id:
             carrito.id,
 
-          producto_id,
+          producto_id:
+            productoId,
         },
       });
 
@@ -247,7 +261,6 @@ async function agregarProductoAlCarrito(
     // ========================================
 
     if (itemExistente) {
-
       const nuevaCantidad =
         itemExistente.cantidad +
         cantidadNumerica;
@@ -281,7 +294,7 @@ async function agregarProductoAlCarrito(
             itemExistente.id,
 
           producto_id:
-            Number(producto_id),
+            productoId,
 
           cantidad:
             itemExistente.cantidad,
@@ -299,7 +312,8 @@ async function agregarProductoAlCarrito(
         carrito_id:
           carrito.id,
 
-        producto_id,
+        producto_id:
+          productoId,
 
         cantidad:
           cantidadNumerica,
@@ -331,7 +345,7 @@ async function agregarProductoAlCarrito(
 
 
 // ========================================
-// ACTUALIZAR CANTIDAD
+// ACTUALIZAR CANTIDAD DE UN PRODUCTO
 // ========================================
 
 async function actualizarCantidadProducto(
@@ -353,6 +367,17 @@ async function actualizarCantidadProducto(
 
 
     // ========================================
+    // VALIDAR ID DEL PRODUCTO
+    // ========================================
+
+    const productoIdValido =
+      obtenerIdValido(
+        productoId,
+        "productoId"
+      );
+
+
+    // ========================================
     // VALIDAR CANTIDAD
     // ========================================
 
@@ -365,18 +390,10 @@ async function actualizarCantidadProducto(
 
 
     const cantidadNumerica =
-      Number(cantidad);
-
-
-    if (
-      !Number.isInteger(cantidadNumerica) ||
-      cantidadNumerica <= 0
-    ) {
-      throw new AppError(
-        "La cantidad debe ser un número entero mayor a 0",
-        400
+      obtenerEnteroPositivo(
+        cantidad,
+        "cantidad"
       );
-    }
 
 
     // ========================================
@@ -385,7 +402,7 @@ async function actualizarCantidadProducto(
 
     const producto =
       await Producto.findByPk(
-        productoId
+        productoIdValido
       );
 
 
@@ -434,7 +451,7 @@ async function actualizarCantidadProducto(
 
 
     // ========================================
-    // BUSCAR ITEM
+    // BUSCAR PRODUCTO EN EL CARRITO
     // ========================================
 
     const item =
@@ -444,7 +461,7 @@ async function actualizarCantidadProducto(
             carrito.id,
 
           producto_id:
-            productoId,
+            productoIdValido,
         },
       });
 
@@ -458,7 +475,7 @@ async function actualizarCantidadProducto(
 
 
     // ========================================
-    // ACTUALIZAR
+    // ACTUALIZAR CANTIDAD
     // ========================================
 
     await item.update({
@@ -478,7 +495,7 @@ async function actualizarCantidadProducto(
           item.id,
 
         producto_id:
-          Number(productoId),
+          productoIdValido,
 
         cantidad:
           item.cantidad,
@@ -510,6 +527,17 @@ async function eliminarProductoDelCarrito(
 
 
     // ========================================
+    // VALIDAR ID DEL PRODUCTO
+    // ========================================
+
+    const productoIdValido =
+      obtenerIdValido(
+        productoId,
+        "productoId"
+      );
+
+
+    // ========================================
     // BUSCAR CARRITO
     // ========================================
 
@@ -531,7 +559,7 @@ async function eliminarProductoDelCarrito(
 
 
     // ========================================
-    // BUSCAR PRODUCTO EN CARRITO
+    // BUSCAR PRODUCTO EN EL CARRITO
     // ========================================
 
     const item =
@@ -541,7 +569,7 @@ async function eliminarProductoDelCarrito(
             carrito.id,
 
           producto_id:
-            productoId,
+            productoIdValido,
         },
       });
 
@@ -555,7 +583,7 @@ async function eliminarProductoDelCarrito(
 
 
     // ========================================
-    // ELIMINAR
+    // ELIMINAR ITEM
     // ========================================
 
     await item.destroy();
