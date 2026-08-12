@@ -5,10 +5,19 @@ const {
   iniciarSesion,
 } = require("../controllers/authController");
 
+const {
+  limiteLogin,
+} = require("../middlewares/securityMiddleware");
+
+
 const router = express.Router();
 
 router.post("/register", registrarUsuario);
 
-router.post("/login", iniciarSesion);
+router.post(
+  "/login",
+  limiteLogin,
+  iniciarSesion
+);
 
 module.exports = router;
