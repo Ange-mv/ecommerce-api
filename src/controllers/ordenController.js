@@ -8,12 +8,14 @@ const {
   DetalleOrden,
 } = require("../models");
 
+const AppError = require("../utils/AppError");
+
 
 // ========================================
 // CREAR ORDEN
 // ========================================
 
-async function crearOrden(req, res) {
+async function crearOrden(req, res, next) {
   try {
     const usuarioId = req.user.id;
 
@@ -21,7 +23,7 @@ async function crearOrden(req, res) {
       async (transaction) => {
 
         // ========================================
-        // 1. BUSCAR CARRITO DEL USUARIO
+        // 1. BUSCAR CARRITO
         // ========================================
 
         const carrito = await Carrito.findOne({
@@ -31,19 +33,17 @@ async function crearOrden(req, res) {
           transaction,
         });
 
+
         if (!carrito) {
-          const error = new Error(
-            "Carrito no encontrado"
+          throw new AppError(
+            "Carrito no encontrado",
+            404
           );
-
-          error.status = 404;
-
-          throw error;
         }
 
 
         // ========================================
-        // 2. OBTENER ITEMS DEL CARRITO
+        // 2. OBTENER ITEMS
         // ========================================
 
         const itemsCarrito =
@@ -56,18 +56,13 @@ async function crearOrden(req, res) {
 
 
         if (itemsCarrito.length === 0) {
-          const error = new Error(
-            "El carrito está vacío"
+          throw new AppError(
+            "El carrito está vacío",
+            400
           );
-
-          error.status = 400;
-
-          throw error;
         }
 
 
-        // Aquí guardaremos los productos
-        // validados antes de crear la orden
         const productosCompra = [];
 
         let total = 0;
@@ -85,32 +80,28 @@ async function crearOrden(req, res) {
               {
                 transaction,
 
-                // Bloqueamos el producto durante
-                // esta transacción
-                lock: transaction.LOCK.UPDATE,
+                lock:
+                  transaction.LOCK.UPDATE,
               }
             );
 
 
           if (!producto) {
-            const error = new Error(
-              `Producto ${item.producto_id} no encontrado`
+            throw new AppError(
+              `Producto ${item.producto_id} no encontrado`,
+              404
             );
-
-            error.status = 404;
-
-            throw error;
           }
 
 
-          if (producto.stock < item.cantidad) {
-            const error = new Error(
-              `Stock insuficiente para ${producto.nombre}`
+          if (
+            producto.stock <
+            item.cantidad
+          ) {
+            throw new AppError(
+              `Stock insuficiente para ${producto.nombre}`,
+              400
             );
-
-            error.status = 400;
-
-            throw error;
           }
 
 
@@ -143,14 +134,13 @@ async function crearOrden(req, res) {
         const nuevaOrden =
           await Orden.create(
             {
-              usuario_id: usuarioId,
+              usuario_id:
+                usuarioId,
 
               total,
 
-              // Como todavía no tenemos
-              // pasarela de pago, simularemos
-              // una compra completada.
-              estado: "pagada",
+              estado:
+                "pagada",
             },
             {
               transaction,
@@ -159,13 +149,14 @@ async function crearOrden(req, res) {
 
 
         // ========================================
-        // 5. PREPARAR DETALLE DE ORDEN
+        // 5. PREPARAR DETALLES
         // ========================================
 
         const detalles =
-          productosCompra.map((item) => {
-            return {
-              orden_id: nuevaOrden.id,
+          productosCompra.map(
+            (item) => ({
+              orden_id:
+                nuevaOrden.id,
 
               producto_id:
                 item.producto.id,
@@ -181,8 +172,8 @@ async function crearOrden(req, res) {
 
               subtotal:
                 item.subtotal,
-            };
-          });
+            })
+          );
 
 
         // ========================================
@@ -201,7 +192,10 @@ async function crearOrden(req, res) {
         // 7. DESCONTAR STOCK
         // ========================================
 
-        for (const item of productosCompra) {
+        for (
+          const item
+          of productosCompra
+        ) {
 
           const nuevoStock =
             item.producto.stock -
@@ -210,7 +204,8 @@ async function crearOrden(req, res) {
 
           await item.producto.update(
             {
-              stock: nuevoStock,
+              stock:
+                nuevoStock,
             },
             {
               transaction,
@@ -225,16 +220,17 @@ async function crearOrden(req, res) {
 
         await CarritoProducto.destroy({
           where: {
-            carrito_id: carrito.id,
+            carrito_id:
+              carrito.id,
           },
           transaction,
         });
 
 
-        // Todo salió correctamente.
-        // Sequelize hará COMMIT.
         return {
-          orden: nuevaOrden,
+          orden:
+            nuevaOrden,
+
           detalles,
         };
       }
@@ -247,10 +243,13 @@ async function crearOrden(req, res) {
 
     res.status(201).json({
       ok: true,
+
       message:
         "Orden creada correctamente",
+
       orden: {
-        id: resultado.orden.id,
+        id:
+          resultado.orden.id,
 
         usuario_id:
           resultado.orden.usuario_id,
@@ -267,55 +266,55 @@ async function crearOrden(req, res) {
     });
 
   } catch (error) {
-
-    console.error(error);
-
-
-    res.status(
-      error.status || 500
-    ).json({
-      ok: false,
-
-      message:
-        error.status
-          ? error.message
-          : "Error al crear la orden",
-    });
+    next(error);
   }
 }
+
 
 // ========================================
 // OBTENER ÓRDENES DEL USUARIO
 // ========================================
 
-async function obtenerOrdenes(req, res) {
+async function obtenerOrdenes(req, res, next) {
   try {
-    const usuarioId = req.user.id;
+    const usuarioId =
+      req.user.id;
 
-    const ordenes = await Orden.findAll({
-      where: {
-        usuario_id: usuarioId,
-      },
 
-      include: [
-        {
-          model: DetalleOrden,
-          as: "detalles",
-          attributes: [
-            "id",
-            "producto_id",
-            "nombre_producto",
-            "cantidad",
-            "precio_unitario",
-            "subtotal",
-          ],
+    const ordenes =
+      await Orden.findAll({
+        where: {
+          usuario_id:
+            usuarioId,
         },
-      ],
 
-      order: [
-        ["created_at", "DESC"],
-      ],
-    });
+        include: [
+          {
+            model:
+              DetalleOrden,
+
+            as:
+              "detalles",
+
+            attributes: [
+              "id",
+              "producto_id",
+              "nombre_producto",
+              "cantidad",
+              "precio_unitario",
+              "subtotal",
+            ],
+          },
+        ],
+
+        order: [
+          [
+            "created_at",
+            "DESC",
+          ],
+        ],
+      });
+
 
     res.status(200).json({
       ok: true,
@@ -323,52 +322,66 @@ async function obtenerOrdenes(req, res) {
     });
 
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      ok: false,
-      message: "Error al obtener las órdenes",
-    });
+    next(error);
   }
 }
+
 
 // ========================================
 // OBTENER ORDEN POR ID
 // ========================================
 
-async function obtenerOrdenPorId(req, res) {
+async function obtenerOrdenPorId(
+  req,
+  res,
+  next
+) {
   try {
-    const usuarioId = req.user.id;
-    const { id } = req.params;
+    const usuarioId =
+      req.user.id;
 
-    const orden = await Orden.findOne({
-      where: {
-        id,
-        usuario_id: usuarioId,
-      },
+    const {
+      id,
+    } = req.params;
 
-      include: [
-        {
-          model: DetalleOrden,
-          as: "detalles",
-          attributes: [
-            "id",
-            "producto_id",
-            "nombre_producto",
-            "cantidad",
-            "precio_unitario",
-            "subtotal",
-          ],
+
+    const orden =
+      await Orden.findOne({
+        where: {
+          id,
+
+          usuario_id:
+            usuarioId,
         },
-      ],
-    });
+
+        include: [
+          {
+            model:
+              DetalleOrden,
+
+            as:
+              "detalles",
+
+            attributes: [
+              "id",
+              "producto_id",
+              "nombre_producto",
+              "cantidad",
+              "precio_unitario",
+              "subtotal",
+            ],
+          },
+        ],
+      });
+
 
     if (!orden) {
-      return res.status(404).json({
-        ok: false,
-        message: "Orden no encontrada",
-      });
+      throw new AppError(
+        "Orden no encontrada",
+        404
+      );
     }
+
 
     res.status(200).json({
       ok: true,
@@ -376,14 +389,14 @@ async function obtenerOrdenPorId(req, res) {
     });
 
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      ok: false,
-      message: "Error al obtener la orden",
-    });
+    next(error);
   }
 }
+
+
+// ========================================
+// EXPORTAR FUNCIONES
+// ========================================
 
 module.exports = {
   crearOrden,
