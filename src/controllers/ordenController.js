@@ -10,6 +10,10 @@ const {
 
 const AppError = require("../utils/AppError");
 
+const {
+  obtenerIdValido,
+} = require("../utils/validaciones");
+
 
 // ========================================
 // CREAR ORDEN
@@ -19,222 +23,248 @@ async function crearOrden(req, res, next) {
   try {
     const usuarioId = req.user.id;
 
-    const resultado = await sequelize.transaction(
-      async (transaction) => {
 
-        // ========================================
-        // 1. BUSCAR CARRITO
-        // ========================================
-
-        const carrito = await Carrito.findOne({
-          where: {
-            usuario_id: usuarioId,
-          },
-          transaction,
-        });
+    const resultado =
+      await sequelize.transaction(
+        async (transaction) => {
 
 
-        if (!carrito) {
-          throw new AppError(
-            "Carrito no encontrado",
-            404
-          );
-        }
+          // ========================================
+          // 1. BUSCAR CARRITO
+          // ========================================
+
+          const carrito =
+            await Carrito.findOne({
+              where: {
+                usuario_id:
+                  usuarioId,
+              },
+
+              transaction,
+            });
 
 
-        // ========================================
-        // 2. OBTENER ITEMS
-        // ========================================
-
-        const itemsCarrito =
-          await CarritoProducto.findAll({
-            where: {
-              carrito_id: carrito.id,
-            },
-            transaction,
-          });
-
-
-        if (itemsCarrito.length === 0) {
-          throw new AppError(
-            "El carrito está vacío",
-            400
-          );
-        }
-
-
-        const productosCompra = [];
-
-        let total = 0;
-
-
-        // ========================================
-        // 3. VALIDAR PRODUCTOS Y STOCK
-        // ========================================
-
-        for (const item of itemsCarrito) {
-
-          const producto =
-            await Producto.findByPk(
-              item.producto_id,
-              {
-                transaction,
-
-                lock:
-                  transaction.LOCK.UPDATE,
-              }
-            );
-
-
-          if (!producto) {
+          if (!carrito) {
             throw new AppError(
-              `Producto ${item.producto_id} no encontrado`,
+              "Carrito no encontrado",
               404
             );
           }
 
 
+          // ========================================
+          // 2. OBTENER ITEMS DEL CARRITO
+          // ========================================
+
+          const itemsCarrito =
+            await CarritoProducto.findAll({
+              where: {
+                carrito_id:
+                  carrito.id,
+              },
+
+              transaction,
+            });
+
+
           if (
-            producto.stock <
-            item.cantidad
+            itemsCarrito.length === 0
           ) {
             throw new AppError(
-              `Stock insuficiente para ${producto.nombre}`,
+              "El carrito está vacío",
               400
             );
           }
 
 
-          const precio =
-            Number(producto.precio);
+          const productosCompra = [];
 
-          const cantidad =
-            Number(item.cantidad);
-
-          const subtotal =
-            precio * cantidad;
+          let total = 0;
 
 
-          total += subtotal;
+          // ========================================
+          // 3. VALIDAR PRODUCTOS Y STOCK
+          // ========================================
+
+          for (
+            const item
+            of itemsCarrito
+          ) {
+
+            const producto =
+              await Producto.findByPk(
+                item.producto_id,
+                {
+                  transaction,
+
+                  lock:
+                    transaction.LOCK.UPDATE,
+                }
+              );
 
 
-          productosCompra.push({
-            producto,
-            cantidad,
-            precio,
-            subtotal,
-          });
-        }
-
-
-        // ========================================
-        // 4. CREAR ORDEN
-        // ========================================
-
-        const nuevaOrden =
-          await Orden.create(
-            {
-              usuario_id:
-                usuarioId,
-
-              total,
-
-              estado:
-                "pagada",
-            },
-            {
-              transaction,
+            if (!producto) {
+              throw new AppError(
+                `Producto ${item.producto_id} no encontrado`,
+                404
+              );
             }
-          );
 
 
-        // ========================================
-        // 5. PREPARAR DETALLES
-        // ========================================
-
-        const detalles =
-          productosCompra.map(
-            (item) => ({
-              orden_id:
-                nuevaOrden.id,
-
-              producto_id:
-                item.producto.id,
-
-              nombre_producto:
-                item.producto.nombre,
-
-              cantidad:
-                item.cantidad,
-
-              precio_unitario:
-                item.precio,
-
-              subtotal:
-                item.subtotal,
-            })
-          );
+            if (
+              producto.stock <
+              item.cantidad
+            ) {
+              throw new AppError(
+                `Stock insuficiente para ${producto.nombre}`,
+                400
+              );
+            }
 
 
-        // ========================================
-        // 6. CREAR DETALLES
-        // ========================================
+            const precio =
+              Number(
+                producto.precio
+              );
 
-        await DetalleOrden.bulkCreate(
-          detalles,
-          {
-            transaction,
+
+            const cantidad =
+              Number(
+                item.cantidad
+              );
+
+
+            const subtotal =
+              precio * cantidad;
+
+
+            total += subtotal;
+
+
+            productosCompra.push({
+              producto,
+              cantidad,
+              precio,
+              subtotal,
+            });
           }
-        );
 
 
-        // ========================================
-        // 7. DESCONTAR STOCK
-        // ========================================
+          // ========================================
+          // 4. CREAR ORDEN
+          // ========================================
 
-        for (
-          const item
-          of productosCompra
-        ) {
+          const nuevaOrden =
+            await Orden.create(
+              {
+                usuario_id:
+                  usuarioId,
 
-          const nuevoStock =
-            item.producto.stock -
-            item.cantidad;
+                total,
+
+                estado:
+                  "pagada",
+              },
+
+              {
+                transaction,
+              }
+            );
 
 
-          await item.producto.update(
-            {
-              stock:
-                nuevoStock,
-            },
+          // ========================================
+          // 5. PREPARAR DETALLE DE ORDEN
+          // ========================================
+
+          const detalles =
+            productosCompra.map(
+              (item) => ({
+                orden_id:
+                  nuevaOrden.id,
+
+                producto_id:
+                  item.producto.id,
+
+                nombre_producto:
+                  item.producto.nombre,
+
+                cantidad:
+                  item.cantidad,
+
+                precio_unitario:
+                  item.precio,
+
+                subtotal:
+                  item.subtotal,
+              })
+            );
+
+
+          // ========================================
+          // 6. GUARDAR DETALLES
+          // ========================================
+
+          await DetalleOrden.bulkCreate(
+            detalles,
             {
               transaction,
             }
           );
+
+
+          // ========================================
+          // 7. DESCONTAR STOCK
+          // ========================================
+
+          for (
+            const item
+            of productosCompra
+          ) {
+
+            const nuevoStock =
+              item.producto.stock -
+              item.cantidad;
+
+
+            await item.producto.update(
+              {
+                stock:
+                  nuevoStock,
+              },
+
+              {
+                transaction,
+              }
+            );
+          }
+
+
+          // ========================================
+          // 8. VACIAR CARRITO
+          // ========================================
+
+          await CarritoProducto.destroy({
+            where: {
+              carrito_id:
+                carrito.id,
+            },
+
+            transaction,
+          });
+
+
+          // ========================================
+          // RESULTADO DE LA TRANSACCIÓN
+          // ========================================
+
+          return {
+            orden:
+              nuevaOrden,
+
+            detalles,
+          };
         }
-
-
-        // ========================================
-        // 8. VACIAR CARRITO
-        // ========================================
-
-        await CarritoProducto.destroy({
-          where: {
-            carrito_id:
-              carrito.id,
-          },
-          transaction,
-        });
-
-
-        return {
-          orden:
-            nuevaOrden,
-
-          detalles,
-        };
-      }
-    );
+      );
 
 
     // ========================================
@@ -272,10 +302,14 @@ async function crearOrden(req, res, next) {
 
 
 // ========================================
-// OBTENER ÓRDENES DEL USUARIO
+// OBTENER TODAS LAS ÓRDENES DEL USUARIO
 // ========================================
 
-async function obtenerOrdenes(req, res, next) {
+async function obtenerOrdenes(
+  req,
+  res,
+  next
+) {
   try {
     const usuarioId =
       req.user.id;
@@ -340,15 +374,27 @@ async function obtenerOrdenPorId(
     const usuarioId =
       req.user.id;
 
-    const {
-      id,
-    } = req.params;
 
+    // ========================================
+    // VALIDAR ID DE LA ORDEN
+    // ========================================
+
+    const ordenId =
+      obtenerIdValido(
+        req.params.id,
+        "id"
+      );
+
+
+    // ========================================
+    // BUSCAR ORDEN DEL USUARIO
+    // ========================================
 
     const orden =
       await Orden.findOne({
         where: {
-          id,
+          id:
+            ordenId,
 
           usuario_id:
             usuarioId,
@@ -382,6 +428,10 @@ async function obtenerOrdenPorId(
       );
     }
 
+
+    // ========================================
+    // RESPUESTA
+    // ========================================
 
     res.status(200).json({
       ok: true,
