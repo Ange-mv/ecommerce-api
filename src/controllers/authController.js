@@ -2,7 +2,12 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const { Usuario } = require("../models");
+
 const AppError = require("../utils/AppError");
+
+const {
+  validarEmail,
+} = require("../utils/validaciones");
 
 
 // ========================================
@@ -19,13 +24,13 @@ async function registrarUsuario(req, res, next) {
 
 
     // ========================================
-    // VALIDAR CAMPOS
+    // VALIDAR CAMPOS OBLIGATORIOS
     // ========================================
 
     if (
-      !nombre ||
-      !email ||
-      !password
+      nombre === undefined ||
+      email === undefined ||
+      password === undefined
     ) {
       throw new AppError(
         "Nombre, email y password son obligatorios",
@@ -34,21 +39,49 @@ async function registrarUsuario(req, res, next) {
     }
 
 
-    // Validar contraseña
-    if (password.length < 6) {
+    // ========================================
+    // VALIDAR NOMBRE
+    // ========================================
+
+    if (
+      typeof nombre !== "string" ||
+      !nombre.trim()
+    ) {
       throw new AppError(
-        "La contraseña debe tener al menos 6 caracteres",
+        "El nombre debe ser válido",
         400
       );
     }
 
 
     // ========================================
-    // NORMALIZAR EMAIL
+    // VALIDAR EMAIL
     // ========================================
 
     const emailNormalizado =
-      email.trim().toLowerCase();
+      validarEmail(email);
+
+
+    // ========================================
+    // VALIDAR PASSWORD
+    // ========================================
+
+    if (
+      typeof password !== "string"
+    ) {
+      throw new AppError(
+        "La contraseña debe ser texto",
+        400
+      );
+    }
+
+
+    if (password.length < 6) {
+      throw new AppError(
+        "La contraseña debe tener al menos 6 caracteres",
+        400
+      );
+    }
 
 
     // ========================================
@@ -88,10 +121,17 @@ async function registrarUsuario(req, res, next) {
 
     const nuevoUsuario =
       await Usuario.create({
-        nombre: nombre.trim(),
-        email: emailNormalizado,
-        password: passwordHash,
-        rol: "cliente",
+        nombre:
+          nombre.trim(),
+
+        email:
+          emailNormalizado,
+
+        password:
+          passwordHash,
+
+        rol:
+          "cliente",
       });
 
 
@@ -139,12 +179,12 @@ async function iniciarSesion(req, res, next) {
 
 
     // ========================================
-    // VALIDAR CAMPOS
+    // VALIDAR CAMPOS OBLIGATORIOS
     // ========================================
 
     if (
-      !email ||
-      !password
+      email === undefined ||
+      password === undefined
     ) {
       throw new AppError(
         "Email y password son obligatorios",
@@ -153,8 +193,27 @@ async function iniciarSesion(req, res, next) {
     }
 
 
+    // ========================================
+    // VALIDAR EMAIL
+    // ========================================
+
     const emailNormalizado =
-      email.trim().toLowerCase();
+      validarEmail(email);
+
+
+    // ========================================
+    // VALIDAR PASSWORD
+    // ========================================
+
+    if (
+      typeof password !== "string" ||
+      !password
+    ) {
+      throw new AppError(
+        "La contraseña debe ser válida",
+        400
+      );
+    }
 
 
     // ========================================
@@ -164,7 +223,8 @@ async function iniciarSesion(req, res, next) {
     const usuario =
       await Usuario.findOne({
         where: {
-          email: emailNormalizado,
+          email:
+            emailNormalizado,
         },
       });
 
@@ -216,7 +276,8 @@ async function iniciarSesion(req, res, next) {
         process.env.JWT_SECRET,
 
         {
-          expiresIn: "1h",
+          expiresIn:
+            "1h",
         }
       );
 
