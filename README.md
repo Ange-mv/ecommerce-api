@@ -791,6 +791,5 @@ Los archivos cargados durante la ejecución de la aplicación no son versionados
 
 ---
 
-# Autor
+# Autor Angela Mena 
 
-Proyecto desarrollado como parte de formación en **Desarrollo Full Stack JavaScript**.

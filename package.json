@@ -1,13 +1,22 @@
 {
   "name": "ecommerce-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "API REST de e-commerce desarrollada con Node.js, Express, PostgreSQL, Sequelize, JWT y transacciones.",
+  "main": "src/server.js",
   "scripts": {
-  "start": "node src/server.js",
-  "dev": "nodemon src/server.js"
-},
-  "keywords": [],
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "postgresql",
+    "sequelize",
+    "jwt",
+    "rest-api",
+    "ecommerce",
+    "backend"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
