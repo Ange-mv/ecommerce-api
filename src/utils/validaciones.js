@@ -12,6 +12,9 @@ function obtenerIdValido(
   const numero = Number(valor);
 
   if (
+    typeof valor === "boolean" ||
+    valor === null ||
+    valor === "" ||
     !Number.isInteger(numero) ||
     numero <= 0
   ) {
@@ -36,11 +39,41 @@ function obtenerEnteroPositivo(
   const numero = Number(valor);
 
   if (
+    typeof valor === "boolean" ||
+    valor === null ||
+    valor === "" ||
     !Number.isInteger(numero) ||
     numero <= 0
   ) {
     throw new AppError(
       `${nombreCampo} debe ser un número entero mayor a 0`,
+      400
+    );
+  }
+
+  return numero;
+}
+
+
+// ========================================
+// VALIDAR ENTERO NO NEGATIVO
+// ========================================
+
+function obtenerEnteroNoNegativo(
+  valor,
+  nombreCampo
+) {
+  const numero = Number(valor);
+
+  if (
+    typeof valor === "boolean" ||
+    valor === null ||
+    valor === "" ||
+    !Number.isInteger(numero) ||
+    numero < 0
+  ) {
+    throw new AppError(
+      `${nombreCampo} debe ser un número entero mayor o igual a 0`,
       400
     );
   }
@@ -60,7 +93,10 @@ function obtenerNumeroNoNegativo(
   const numero = Number(valor);
 
   if (
-    Number.isNaN(numero) ||
+    typeof valor === "boolean" ||
+    valor === null ||
+    valor === "" ||
+    !Number.isFinite(numero) ||
     numero < 0
   ) {
     throw new AppError(
@@ -100,6 +136,7 @@ function validarEmail(email) {
 module.exports = {
   obtenerIdValido,
   obtenerEnteroPositivo,
+  obtenerEnteroNoNegativo,
   obtenerNumeroNoNegativo,
   validarEmail,
 };

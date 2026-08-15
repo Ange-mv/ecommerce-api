@@ -7,8 +7,9 @@ const AppError = require("../utils/AppError");
 
 const {
   obtenerIdValido,
+  obtenerEnteroNoNegativo,
+  obtenerNumeroNoNegativo,
 } = require("../utils/validaciones");
-
 
 // ========================================
 // OBTENER TODOS LOS PRODUCTOS
@@ -336,10 +337,6 @@ try {
 }
 
 
-// ========================================
-// CREAR PRODUCTO
-// ========================================
-
 async function crearProducto(req, res, next) {
   try {
     const {
@@ -351,12 +348,15 @@ async function crearProducto(req, res, next) {
     } = req.body;
 
 
-    // Validar campos obligatorios
+    // ========================================
+    // VALIDAR CAMPOS OBLIGATORIOS
+    // ========================================
+
     if (
-      !nombre ||
+      nombre === undefined ||
       precio === undefined ||
       stock === undefined ||
-      !categoria_id
+      categoria_id === undefined
     ) {
       throw new AppError(
         "Los campos nombre, precio, stock y categoria_id son obligatorios",
@@ -365,28 +365,61 @@ async function crearProducto(req, res, next) {
     }
 
 
-    // Validar precio
-    if (Number(precio) < 0) {
+    // ========================================
+    // VALIDAR NOMBRE
+    // ========================================
+
+    if (
+      typeof nombre !== "string" ||
+      !nombre.trim()
+    ) {
       throw new AppError(
-        "El precio no puede ser negativo",
+        "El nombre del producto debe ser válido",
         400
       );
     }
 
 
-    // Validar stock
-    if (Number(stock) < 0) {
-      throw new AppError(
-        "El stock no puede ser negativo",
-        400
+    // ========================================
+    // VALIDAR PRECIO
+    // ========================================
+
+    const precioValido =
+      obtenerNumeroNoNegativo(
+        precio,
+        "precio"
       );
-    }
 
 
-    // Validar categoría
+    // ========================================
+    // VALIDAR STOCK
+    // ========================================
+
+    const stockValido =
+      obtenerEnteroNoNegativo(
+        stock,
+        "stock"
+      );
+
+
+    // ========================================
+    // VALIDAR ID DE CATEGORÍA
+    // ========================================
+
+    const categoriaIdValido =
+      obtenerIdValido(
+        categoria_id,
+        "categoria_id"
+      );
+
+
+    // ========================================
+    // COMPROBAR QUE LA CATEGORÍA EXISTA
+    // ========================================
+
     const categoria =
       await Categoria.findByPk(
-        categoria_id
+        categoriaIdValido
       );
 
 
@@ -398,14 +431,25 @@ async function crearProducto(req, res, next) {
     }
 
 
-    // Crear producto
+    // ========================================
+    // CREAR PRODUCTO
+    // ========================================
+
     const nuevoProducto =
       await Producto.create({
-        nombre,
+        nombre:
+          nombre.trim(),
+
         descripcion,
-        precio,
-        stock,
-        categoria_id,
+
+        precio:
+          precioValido,
+
+        stock:
+          stockValido,
+
+        categoria_id:
+          categoriaIdValido,
       });
 
 
@@ -424,17 +468,17 @@ async function crearProducto(req, res, next) {
   }
 }
 
-
-// ========================================
-// ACTUALIZAR PRODUCTO
-// ========================================
-
-async function actualizarProducto(req, res, next) {
+async function actualizarProducto(
+  req,
+  res,
+  next
+) {
   try {
     const id =
-  obtenerIdValido(
-    req.params.id
-  );
+      obtenerIdValido(
+        req.params.id
+      );
+
 
     const {
       nombre,
@@ -445,7 +489,10 @@ async function actualizarProducto(req, res, next) {
     } = req.body;
 
 
-    // Buscar producto
+    // ========================================
+    // BUSCAR PRODUCTO
+    // ========================================
+
     const producto =
       await Producto.findByPk(id);
 
@@ -458,36 +505,70 @@ async function actualizarProducto(req, res, next) {
     }
 
 
-    // Validar precio
+    // ========================================
+    // VALIDAR NOMBRE SI FUE ENVIADO
+    // ========================================
+
     if (
-      precio !== undefined &&
-      Number(precio) < 0
+      nombre !== undefined &&
+      (
+        typeof nombre !== "string" ||
+        !nombre.trim()
+      )
     ) {
       throw new AppError(
-        "El precio no puede ser negativo",
+        "El nombre del producto debe ser válido",
         400
       );
     }
 
 
-    // Validar stock
-    if (
-      stock !== undefined &&
-      Number(stock) < 0
-    ) {
-      throw new AppError(
-        "El stock no puede ser negativo",
-        400
-      );
-    }
+    // ========================================
+    // VALIDAR PRECIO SI FUE ENVIADO
+    // ========================================
+
+    const precioActualizado =
+      precio !== undefined
+        ? obtenerNumeroNoNegativo(
+            precio,
+            "precio"
+          )
+        : producto.precio;
 
 
-    // Validar categoría
+    // ========================================
+    // VALIDAR STOCK SI FUE ENVIADO
+    // ========================================
+
+    const stockActualizado =
+      stock !== undefined
+        ? obtenerEnteroNoNegativo(
+            stock,
+            "stock"
+          )
+        : producto.stock;
+
+
+    // ========================================
+    // VALIDAR CATEGORÍA SI FUE ENVIADA
+    // ========================================
+
+    let categoriaIdActualizado =
+      producto.categoria_id;
+
+
     if (categoria_id !== undefined) {
+
+      categoriaIdActualizado =
+        obtenerIdValido(
+          categoria_id,
+          "categoria_id"
+        );
+
 
       const categoria =
         await Categoria.findByPk(
-          categoria_id
+          categoriaIdActualizado
         );
 
 
@@ -500,24 +581,29 @@ async function actualizarProducto(req, res, next) {
     }
 
 
-    // Actualizar producto
+    // ========================================
+    // ACTUALIZAR PRODUCTO
+    // ========================================
+
     await producto.update({
       nombre:
-        nombre ?? producto.nombre,
+        nombre !== undefined
+          ? nombre.trim()
+          : producto.nombre,
 
       descripcion:
-        descripcion ??
-        producto.descripcion,
+        descripcion !== undefined
+          ? descripcion
+          : producto.descripcion,
 
       precio:
-        precio ?? producto.precio,
+        precioActualizado,
 
       stock:
-        stock ?? producto.stock,
+        stockActualizado,
 
       categoria_id:
-        categoria_id ??
-        producto.categoria_id,
+        categoriaIdActualizado,
     });
 
 
@@ -534,7 +620,6 @@ async function actualizarProducto(req, res, next) {
     next(error);
   }
 }
-
 
 // ========================================
 // ELIMINAR PRODUCTO
