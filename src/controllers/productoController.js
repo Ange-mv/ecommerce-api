@@ -1,4 +1,9 @@
-const { Producto, Categoria } = require("../models");
+const {
+  Producto,
+  Categoria,
+  CarritoProducto,
+  DetalleOrden,
+} = require("../models");
 const { Op } = require("sequelize");
 const fs = require("fs");
 const path = require("path");
@@ -625,12 +630,21 @@ async function actualizarProducto(
 // ELIMINAR PRODUCTO
 // ========================================
 
-async function eliminarProducto(req, res, next) {
+async function eliminarProducto(
+  req,
+  res,
+  next
+) {
   try {
     const id =
-  obtenerIdValido(
-    req.params.id
-  );
+      obtenerIdValido(
+        req.params.id
+      );
+
+
+    // ========================================
+    // BUSCAR PRODUCTO
+    // ========================================
 
     const producto =
       await Producto.findByPk(id);
@@ -644,28 +658,82 @@ async function eliminarProducto(req, res, next) {
     }
 
 
-    // Guardamos el nombre de la imagen
-    // antes de eliminar el producto
+    // ========================================
+    // COMPROBAR SI ESTÁ EN ÓRDENES
+    // ========================================
+
+    const cantidadOrdenes =
+      await DetalleOrden.count({
+        where: {
+          producto_id: id,
+        },
+      });
+
+
+    if (cantidadOrdenes > 0) {
+      throw new AppError(
+        "No se puede eliminar el producto porque forma parte del historial de órdenes",
+        409
+      );
+    }
+
+
+    // ========================================
+    // COMPROBAR SI ESTÁ EN CARRITOS
+    // ========================================
+
+    const cantidadCarritos =
+      await CarritoProducto.count({
+        where: {
+          producto_id: id,
+        },
+      });
+
+
+    if (cantidadCarritos > 0) {
+      throw new AppError(
+        "No se puede eliminar el producto porque está agregado a uno o más carritos",
+        409
+      );
+    }
+
+
+    // ========================================
+    // GUARDAR IMAGEN ANTES DE ELIMINAR
+    // ========================================
+
     const imagenAnterior =
       producto.imagen;
 
 
+    // ========================================
+    // ELIMINAR PRODUCTO
+    // ========================================
+
     await producto.destroy();
 
 
-    // Si tenía imagen, eliminamos
-    // también el archivo físico
+    // ========================================
+    // ELIMINAR IMAGEN FÍSICA
+    // ========================================
+
     if (imagenAnterior) {
+      const rutaImagen =
+        path.join(
+          __dirname,
+          "../../uploads/productos",
+          imagenAnterior
+        );
 
-      const rutaImagen = path.join(
-        __dirname,
-        "../../uploads/productos",
-        imagenAnterior
-      );
 
-
-      if (fs.existsSync(rutaImagen)) {
-        fs.unlinkSync(rutaImagen);
+      if (
+        fs.existsSync(
+          rutaImagen
+        )
+      ) {
+        fs.unlinkSync(
+          rutaImagen
+        );
       }
     }
 

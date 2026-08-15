@@ -1,4 +1,8 @@
-const { Categoria, Producto } = require("../models");
+const {
+  Categoria,
+  Producto,
+} = require("../models");
+
 const AppError = require("../utils/AppError");
 
 const {
@@ -10,11 +14,19 @@ const {
 // OBTENER TODAS LAS CATEGORÍAS
 // ========================================
 
-async function obtenerCategorias(req, res, next) {
+async function obtenerCategorias(
+  req,
+  res,
+  next
+) {
   try {
-    const categorias = await Categoria.findAll({
-      order: [["id", "ASC"]],
-    });
+    const categorias =
+      await Categoria.findAll({
+        order: [
+          ["id", "ASC"],
+        ],
+      });
+
 
     res.status(200).json({
       ok: true,
@@ -31,14 +43,21 @@ async function obtenerCategorias(req, res, next) {
 // OBTENER CATEGORÍA POR ID
 // ========================================
 
-async function obtenerCategoriaPorId(req, res, next) {
+async function obtenerCategoriaPorId(
+  req,
+  res,
+  next
+) {
   try {
     const id =
-  obtenerIdValido(
-    req.params.id
-  );
+      obtenerIdValido(
+        req.params.id
+      );
 
-    const categoria = await Categoria.findByPk(id);
+
+    const categoria =
+      await Categoria.findByPk(id);
+
 
     if (!categoria) {
       throw new AppError(
@@ -46,6 +65,7 @@ async function obtenerCategoriaPorId(req, res, next) {
         404
       );
     }
+
 
     res.status(200).json({
       ok: true,
@@ -62,25 +82,48 @@ async function obtenerCategoriaPorId(req, res, next) {
 // CREAR CATEGORÍA
 // ========================================
 
-async function crearCategoria(req, res, next) {
+async function crearCategoria(
+  req,
+  res,
+  next
+) {
   try {
-    const { nombre } = req.body;
+    const {
+      nombre,
+    } = req.body;
 
-    // Validar nombre
-    if (!nombre || !nombre.trim()) {
+
+    // ========================================
+    // VALIDAR NOMBRE
+    // ========================================
+
+    if (
+      typeof nombre !== "string" ||
+      !nombre.trim()
+    ) {
       throw new AppError(
-        "El nombre de la categoría es obligatorio",
+        "El nombre de la categoría debe ser válido",
         400
       );
     }
 
-    // Comprobar duplicado
+
+    const nombreNormalizado =
+      nombre.trim();
+
+
+    // ========================================
+    // COMPROBAR DUPLICADO
+    // ========================================
+
     const categoriaExistente =
       await Categoria.findOne({
         where: {
-          nombre: nombre.trim(),
+          nombre:
+            nombreNormalizado,
         },
       });
+
 
     if (categoriaExistente) {
       throw new AppError(
@@ -89,17 +132,26 @@ async function crearCategoria(req, res, next) {
       );
     }
 
-    // Crear
+
+    // ========================================
+    // CREAR CATEGORÍA
+    // ========================================
+
     const nuevaCategoria =
       await Categoria.create({
-        nombre: nombre.trim(),
+        nombre:
+          nombreNormalizado,
       });
+
 
     res.status(201).json({
       ok: true,
+
       message:
         "Categoría creada correctamente",
-      categoria: nuevaCategoria,
+
+      categoria:
+        nuevaCategoria,
     });
 
   } catch (error) {
@@ -112,25 +164,49 @@ async function crearCategoria(req, res, next) {
 // ACTUALIZAR CATEGORÍA
 // ========================================
 
-async function actualizarCategoria(req, res, next) {
+async function actualizarCategoria(
+  req,
+  res,
+  next
+) {
   try {
     const id =
-  obtenerIdValido(
-    req.params.id
-  );
-    const { nombre } = req.body;
+      obtenerIdValido(
+        req.params.id
+      );
 
-    // Validar nombre
-    if (!nombre || !nombre.trim()) {
+
+    const {
+      nombre,
+    } = req.body;
+
+
+    // ========================================
+    // VALIDAR NOMBRE
+    // ========================================
+
+    if (
+      typeof nombre !== "string" ||
+      !nombre.trim()
+    ) {
       throw new AppError(
-        "El nombre de la categoría es obligatorio",
+        "El nombre de la categoría debe ser válido",
         400
       );
     }
 
-    // Buscar categoría
+
+    const nombreNormalizado =
+      nombre.trim();
+
+
+    // ========================================
+    // BUSCAR CATEGORÍA
+    // ========================================
+
     const categoria =
       await Categoria.findByPk(id);
+
 
     if (!categoria) {
       throw new AppError(
@@ -139,18 +215,24 @@ async function actualizarCategoria(req, res, next) {
       );
     }
 
-    // Comprobar si otra categoría
-    // ya utiliza ese nombre
+
+    // ========================================
+    // COMPROBAR DUPLICADO
+    // ========================================
+
     const categoriaExistente =
       await Categoria.findOne({
         where: {
-          nombre: nombre.trim(),
+          nombre:
+            nombreNormalizado,
         },
       });
 
+
     if (
       categoriaExistente &&
-      categoriaExistente.id !== categoria.id
+      categoriaExistente.id !==
+        categoria.id
     ) {
       throw new AppError(
         "Ya existe una categoría con ese nombre",
@@ -158,15 +240,23 @@ async function actualizarCategoria(req, res, next) {
       );
     }
 
-    // Actualizar
+
+    // ========================================
+    // ACTUALIZAR CATEGORÍA
+    // ========================================
+
     await categoria.update({
-      nombre: nombre.trim(),
+      nombre:
+        nombreNormalizado,
     });
+
 
     res.status(200).json({
       ok: true,
+
       message:
         "Categoría actualizada correctamente",
+
       categoria,
     });
 
@@ -180,16 +270,25 @@ async function actualizarCategoria(req, res, next) {
 // ELIMINAR CATEGORÍA
 // ========================================
 
-async function eliminarCategoria(req, res, next) {
+async function eliminarCategoria(
+  req,
+  res,
+  next
+) {
   try {
     const id =
-  obtenerIdValido(
-    req.params.id
-  );
+      obtenerIdValido(
+        req.params.id
+      );
 
-    // Buscar categoría
+
+    // ========================================
+    // BUSCAR CATEGORÍA
+    // ========================================
+
     const categoria =
       await Categoria.findByPk(id);
+
 
     if (!categoria) {
       throw new AppError(
@@ -198,7 +297,11 @@ async function eliminarCategoria(req, res, next) {
       );
     }
 
-    // Comprobar productos asociados
+
+    // ========================================
+    // COMPROBAR PRODUCTOS ASOCIADOS
+    // ========================================
+
     const cantidadProductos =
       await Producto.count({
         where: {
@@ -206,18 +309,27 @@ async function eliminarCategoria(req, res, next) {
         },
       });
 
-    if (cantidadProductos > 0) {
+
+    if (
+      cantidadProductos > 0
+    ) {
       throw new AppError(
         "No se puede eliminar la categoría porque tiene productos asociados",
         409
       );
     }
 
-    // Eliminar
+
+    // ========================================
+    // ELIMINAR CATEGORÍA
+    // ========================================
+
     await categoria.destroy();
+
 
     res.status(200).json({
       ok: true,
+
       message:
         "Categoría eliminada correctamente",
     });
