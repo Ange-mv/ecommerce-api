@@ -176,6 +176,10 @@ Crear una base de datos:
 ```text
 ecommerce_db
 ```
+Ejecutar el archivo:
+
+```text
+database/schema.sql
 
 Configurar las credenciales en un archivo `.env`.
 
